@@ -1,0 +1,81 @@
+classDiagram
+    class Owner {
+        +String name
+        +int daily_time_available_minutes
+        +List~String~ preferred_time_windows
+        +Map preferences
+        +update_preferences(new_preferences)
+        +set_time_available(minutes)
+        +is_time_window_preferred(window) bool
+    }
+
+    class Pet {
+        +String name
+        +String species
+        +String breed
+        +int age
+        +String health_notes
+        +String energy_level
+        +update_profile(data)
+        +get_care_needs_summary() String
+        +requires_special_handling(task_type) bool
+    }
+
+    class CareTask {
+        +String title
+        +String category
+        +int duration_minutes
+        +String priority
+        +Date due_date_or_day
+        +String recurrence
+        +String preferred_time_window
+        +bool mandatory
+        +String notes
+        +is_due_on(date) bool
+        +is_recurring() bool
+        +priority_score() int
+        +conflicts_with(other_task, start_time) bool
+    }
+
+    class TaskManager {
+        +List~CareTask~ tasks
+        +add_task(task)
+        +edit_task(task_id, updates)
+        +remove_task(task_id)
+        +get_tasks_for_day(date) List~CareTask~
+        +filter_tasks(criteria) List~CareTask~
+        +sort_tasks(by_priority, by_duration) List~CareTask~
+    }
+
+    class Scheduler {
+        +String strategy
+        +Map constraints
+        +generate_plan(tasks, owner, pet, date) DailyPlan
+        +rank_tasks(tasks) List~CareTask~
+        +select_tasks_within_time_limit(tasks, available_minutes) List~CareTask~
+        +place_tasks_on_timeline(tasks, windows)
+        +resolve_conflicts(plan)
+        +build_reasoning(plan)
+    }
+
+    class DailyPlan {
+        +Date date
+        +List~String~ scheduled_items
+        +List~String~ unscheduled_tasks
+        +int total_minutes_scheduled
+        +List~String~ explanation_log
+        +add_scheduled_task(task, start_time)
+        +add_unscheduled_task(task, reason)
+        +total_time() int
+        +to_display_format() String
+        +explain_choices() String
+    }
+
+    Owner "1" --> "1..*" Pet : has
+    Pet "1" --> "0..*" CareTask : needs
+    TaskManager "1" o-- "0..*" CareTask : manages
+    Scheduler "1" --> "1" TaskManager : uses
+    Scheduler "1" --> "1" DailyPlan : creates
+    DailyPlan "1" --> "1" Owner : for
+    DailyPlan "1" --> "1" Pet : for
+    DailyPlan "1" o-- "0..*" CareTask : schedules
