@@ -91,14 +91,12 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| **Time-based sorting** | `Scheduler.sort_by_time(tasks)` | Sorts tasks chronologically by their `time` field (`"HH:MM"` string). Uses a lambda key so lexicographic and clock order are identical for zero-padded strings. Tasks with no time value are placed last via the sentinel `"99:99"`. |
+| **Filtering** | `Scheduler.filter_tasks(tasks, completed, pet_name)` | Narrows a task list by completion status (`True`/`False`), pet name, or both. Parameters are optional and composable — omitting one skips that filter axis entirely. |
+| **Conflict detection** | `Scheduler.detect_conflicts(tasks)` | Performs a pairwise O(n²) scan over all pending timed tasks and returns a human-readable warning string for every pair that shares the same `time` slot. Never raises — returns an empty list when no conflicts exist. Completed tasks are excluded since they no longer occupy an active slot. |
+| **Recurring task auto-creation** | `Scheduler.mark_task_complete(task, pet)` | Marks a task done and, for `"daily"` or `"weekly"` tasks, uses `timedelta` to compute the next due date (today + 1 day or + 7 days) and appends a fresh Task instance to the pet. One-off tasks (`recurrence="once"`) return `None`. Uses `dataclasses.replace()` to copy all fields safely, so new Task attributes are inherited automatically. |
 
 ## 📸 Demo Walkthrough
 

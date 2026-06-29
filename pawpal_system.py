@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date, datetime
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 
@@ -87,6 +87,7 @@ class Task:
     mandatory: bool = False
     notes: str = ""
     completed: bool = False
+    time: Optional[str] = None  # "HH:MM" format, e.g. "08:30"
 
     def mark_complete(self) -> None:
         """Mark this task as completed."""
@@ -245,6 +246,71 @@ class Scheduler:
                 seen_ids.add(tid)
                 deduped.append(item)
         plan.scheduled_items = deduped
+
+    def mark_task_complete(self, task: Task, pet: "Pet") -> Optional[Task]:
+        """Mark task complete and, for daily/weekly tasks, append a new instance to the pet.
+
+        Returns the newly created Task, or None for one-off tasks.
+        """
+        task.mark_complete()
+
+        intervals = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
+        if task.recurrence not in intervals:
+            return None
+
+        next_task = replace(
+            task,
+            task_id=f"{task.task_id}_next",
+            due_date_or_day=date.today() + intervals[task.recurrence],
+            completed=False,
+        )
+        pet.tasks.append(next_task)
+        return next_task
+
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Return tasks sorted chronologically by their 'time' attribute (HH:MM string).
+
+        Uses a lambda key so Python's sorted() can compare time strings lexicographically —
+        valid because "HH:MM" zero-padded strings sort in the same order as actual clock times.
+        Tasks that have no time value are assigned the sentinel "99:99" so they always sort last
+        rather than raising an error or being silently dropped.
+        """
+        return sorted(tasks, key=lambda t: t.time if t.time is not None else "99:99")
+
+    def detect_conflicts(self, tasks: List[Task]) -> List[str]:
+        """Return a list of warning strings for any two pending tasks that share the same time slot.
+
+        Uses a lightweight O(n²) pairwise check on the 'time' field — no crash, just warnings.
+        Completed tasks are excluded since they no longer occupy a slot in the active schedule.
+        Tasks without a time value are skipped since they have no defined slot to conflict with.
+        """
+        warnings: List[str] = []
+        timed = [t for t in tasks if t.time is not None and not t.completed]
+        for i in range(len(timed)):
+            for j in range(i + 1, len(timed)):
+                a, b = timed[i], timed[j]
+                if a.time == b.time:
+                    warnings.append(
+                        f"WARNING: '{a.title}' ({a.pet_name or 'unknown'}) and "
+                        f"'{b.title}' ({b.pet_name or 'unknown'}) are both scheduled at {a.time}."
+                    )
+        return warnings
+
+    def filter_tasks(self, tasks: List[Task], completed: Optional[bool] = None, pet_name: Optional[str] = None) -> List[Task]:
+        """Return the subset of tasks that match all provided filters.
+
+        Both parameters are optional and composable — omitting one means "don't filter on that axis."
+        - completed=True  → only tasks already marked done
+        - completed=False → only pending tasks
+        - pet_name="Buddy" → only tasks belonging to that pet (exact match on Task.pet_name)
+        Passing both narrows to tasks that satisfy both conditions simultaneously.
+        """
+        result = tasks
+        if completed is not None:
+            result = [t for t in result if t.completed == completed]
+        if pet_name is not None:
+            result = [t for t in result if t.pet_name == pet_name]
+        return result
 
     def build_reasoning(self, plan: DailyPlan) -> None:
         """Populate the plan's explanation_log with a sentence for each scheduled and skipped task."""

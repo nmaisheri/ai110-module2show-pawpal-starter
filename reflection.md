@@ -16,20 +16,28 @@ The three core actions the user should be able to perform are :
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
-
+No, my design did not change during implementation
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three main constraints:
+
+1. **Time budget** — the owner's `daily_time_available_minutes` acts as a hard cap. Tasks are selected greedily in priority order until the budget is exhausted; any task that doesn't fit is moved to `unscheduled_tasks` with the reason "insufficient time remaining."
+
+2. **Priority and mandatory status** — each task is ranked by `priority_score()`, which combines a 1–3 base score (low/medium/high) with a +2 bonus for mandatory tasks. This ensures critical care (e.g., Luna's inhaler treatment) is always scheduled before optional enrichment activities.
+
+3. **Recurrence and due date** — only tasks that are actually due on the target date are considered, filtered by `is_due_on()`. Daily tasks are always included; weekly and one-off tasks are only included when their date matches.
+
+Priority and mandatory status were treated as the most important constraints because pet health and safety tasks (medical, mandatory walks) should never be bumped by lower-stakes activities regardless of time pressure. Time budget was kept as a hard constraint rather than a soft one to reflect a realistic owner who cannot exceed their available hours — tasks that don't fit are surfaced explicitly rather than silently dropped.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+`detect_conflicts` checks for exact `time` string matches (e.g., both tasks have `time="07:00"`) rather than checking whether two tasks' durations overlap on a continuous timeline. This means a 60-minute task starting at 07:00 and a 30-minute task starting at 07:45 would not be flagged as a conflict, even though they overlap between 07:45 and 08:00.
+
+This tradeoff is reasonable for the current scope of PawPal+ because tasks are entered with explicit start times by the owner, and the primary goal is to catch obvious double-bookings (two tasks assigned to the exact same slot) rather than to simulate a precise minute-by-minute calendar. An overlap-aware check would require converting `"HH:MM"` strings to `datetime` objects, computing end times using `duration_minutes`, and comparing intervals — meaningfully more complex logic for a use case where most conflicts arise from careless duplicate scheduling rather than tight back-to-back packing. If the scheduler were extended to auto-assign start times (rather than relying on user-provided ones), duration-based overlap detection would become the right default.
 
 ---
 
