@@ -1,15 +1,104 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
+    %% ── Ownership / composition ────────────────────────────────────────────
+    Owner "1" *-- "0..*" Pet          : owns
+    Pet   "1" *-- "0..*" Task         : has tasks
+    DailyPlan "1" o-- "1" Owner       : for owner
+    DailyPlan "1" o-- "1" Pet         : for pet
+    DailyPlan "1" o-- "0..*" Task     : scheduled / unscheduled
 
-    class ClassName {
-        +type attribute
-        +method() returnType
+    %% ── Scheduler uses / produces ─────────────────────────────────────────
+    Scheduler ..> Owner               : reads pets
+    Scheduler ..> Pet                 : reads / mutates tasks
+    Scheduler ..> Task                : reads / marks complete
+    Scheduler ..> DailyPlan           : creates & populates
+    Scheduler ..> TaskManager         : (parallel utility class)
+
+    %% ── Classes ───────────────────────────────────────────────────────────
+    class Owner {
+        +String name
+        +int daily_time_available_minutes
+        +List~String~ preferred_time_windows
+        +Dict preferences
+        +List~Pet~ pets
+        +add_pet(pet: Pet) None
+        +remove_pet(pet_name: String) None
+        +get_pets() List~Pet~
+        +update_preferences(new_preferences: Dict) None
+        +set_time_available(minutes: int) None
+        +is_time_window_preferred(window: String) bool
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +String name
+        +String species
+        +String breed
+        +int age
+        +String health_notes
+        +String energy_level
+        +List~Task~ tasks
+        +update_profile(data: Dict) None
+        +get_care_needs_summary() String
+        +requires_special_handling(task_type: String) bool
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +String task_id
+        +String title
+        +String category
+        +int duration_minutes
+        +String priority
+        +String pet_name
+        +date due_date_or_day
+        +String recurrence
+        +String preferred_time_window
+        +bool mandatory
+        +String notes
+        +bool completed
+        +String time
+        +mark_complete() None
+        +is_due_on(target_date: date) bool
+        +is_recurring() bool
+        +priority_score() int
+        +conflicts_with(other: Task, start_time: datetime) bool
+    }
+
+    class TaskManager {
+        +List~Task~ tasks
+        +add_task(task: Task) None
+        +edit_task(task_id: String, updates: Dict) None
+        +remove_task(task_id: String) None
+        +get_tasks_for_day(target_date: date) List~Task~
+        +filter_tasks(criteria: Dict) List~Task~
+        +sort_tasks(by_priority: bool, by_duration: bool) List~Task~
+    }
+
+    class DailyPlan {
+        +date date
+        +Owner owner
+        +Pet pet
+        +List scheduled_items
+        +List unscheduled_tasks
+        +int total_minutes_scheduled
+        +List explanation_log
+        +add_scheduled_task(task: Task, start_time: datetime) None
+        +add_unscheduled_task(task: Task, reason: String) None
+        +total_time() int
+        +to_display_format() String
+        +explain_choices() String
+    }
+
+    class Scheduler {
+        +String strategy
+        +Dict constraints
+        +get_all_tasks(owner: Owner) List~Task~
+        +generate_plan(tasks, owner, pet, target_date) DailyPlan
+        +rank_tasks(tasks: List~Task~) List~Task~
+        +select_tasks_within_time_limit(tasks, available_minutes) List~Task~
+        +place_tasks_on_timeline(tasks, windows) None
+        +resolve_conflicts(plan: DailyPlan) None
+        +mark_task_complete(task: Task, pet: Pet) Task
+        +sort_by_time(tasks: List~Task~) List~Task~
+        +detect_conflicts(tasks: List~Task~) List~String~
+        +filter_tasks(tasks, completed, pet_name) List~Task~
+        +build_reasoning(plan: DailyPlan) None
+    }
