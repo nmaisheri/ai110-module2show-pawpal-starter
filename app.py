@@ -14,8 +14,11 @@ st.title("🐾 PawPal+")
 # browser session.  We check "owner" in st.session_state before creating a
 # new Owner so we don't reset the user's data every time the script reruns.
 # ---------------------------------------------------------------------------
+DATA_FILE = "data.json"
+
 if "owner" not in st.session_state:
-    st.session_state.owner = None   # set after the owner form is submitted
+    # Attempt to restore a previous session from disk on first load
+    st.session_state.owner = Owner.load_from_json(DATA_FILE)
 
 # ---------------------------------------------------------------------------
 # Section 1 — Owner setup
@@ -45,6 +48,7 @@ if submitted_owner:
     if "pets_backup" in st.session_state:
         for pet in st.session_state.pets_backup:
             st.session_state.owner.add_pet(pet)
+    st.session_state.owner.save_to_json(DATA_FILE)
     st.success(f"Owner '{owner_name}' saved with {time_budget} min/day.")
 
 owner: Owner | None = st.session_state.owner
@@ -80,6 +84,7 @@ else:
         owner.add_pet(new_pet)
         # Keep a backup so pets survive an owner-form resubmit
         st.session_state.pets_backup = owner.get_pets()
+        owner.save_to_json(DATA_FILE)
         st.success(f"Added {pet_name} the {species}!")
 
     if owner.get_pets():
@@ -129,6 +134,7 @@ else:
         # Pet.tasks is a plain list — appending here is all that's needed;
         # the Scheduler reads pet.tasks directly when generating a plan.
         target_pet.tasks.append(task)
+        owner.save_to_json(DATA_FILE)
         st.success(f"Task '{task_title}' added to {target_pet_name}.")
 
     # Show all tasks grouped by pet — sorted chronologically, conflicts highlighted

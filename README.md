@@ -15,6 +15,72 @@
 | **Composable filtering** | `Scheduler.filter_tasks()` narrows a task list by completion status, pet name, or both. The UI uses this to show pending tasks in the main table and collapse completed tasks into an expandable section. |
 | **Scheduler reasoning log** | Every generated plan records a human-readable explanation of why each task was scheduled or skipped, exposed via a collapsible "Scheduler reasoning" expander in the UI. |
 | **Budget summary** | After generating a plan, a `st.success` banner shows tasks scheduled, minutes used, and minutes remaining against the owner's daily budget. |
+| **Data persistence** | `Owner.save_to_json()` / `Owner.load_from_json()` serialise the entire object graph (owner → pets → tasks) to `data.json`. The Streamlit app auto-saves on every mutation and auto-loads on startup, so all data survives a page refresh or server restart. |
+
+## 💾 Data Persistence
+
+PawPal+ automatically saves all data to `data.json` in the project root so nothing is lost between sessions.
+
+### How it works
+
+**Serialisation** uses a custom `to_dict` / `from_dict` pattern on each class — no third-party libraries required:
+
+- `Task.to_dict()` converts all fields to JSON-safe primitives. `due_date_or_day` (a Python `date` object) is stored as an ISO 8601 string (`"2026-07-01"`) and restored with `date.fromisoformat()`.
+- `Pet.to_dict()` serialises its own fields and calls `to_dict()` on each task in its list.
+- `Owner.save_to_json(filepath)` wraps the full object graph into one dictionary and writes it with `json.dump(..., indent=2)`.
+- `Owner.load_from_json(filepath)` reads the file and reconstructs the full hierarchy — `Owner` → `Pet` → `Task` — using the corresponding `from_dict` class methods. Returns `None` (rather than raising) if the file doesn't exist, so the app treats a missing file as a first-run condition.
+
+**Auto-save triggers in `app.py`** — `owner.save_to_json()` is called immediately after:
+1. The owner form is submitted (Section 1)
+2. A new pet is added (Section 2)
+3. A new task is added (Section 3)
+
+**Auto-load on startup** — `Owner.load_from_json()` is called once when `"owner"` is not yet in `st.session_state` (i.e., on first page load or after a server restart). If the file exists, the previous session is restored silently.
+
+### Example `data.json` structure
+
+```json
+{
+  "name": "Alex Rivera",
+  "daily_time_available_minutes": 90,
+  "preferred_time_windows": ["morning", "evening"],
+  "preferences": {},
+  "pets": [
+    {
+      "name": "Buddy",
+      "species": "Dog",
+      "breed": "Labrador",
+      "age": 3,
+      "health_notes": "",
+      "energy_level": "high",
+      "tasks": [
+        {
+          "task_id": "a1b2c3d4",
+          "title": "Morning Walk",
+          "category": "exercise",
+          "duration_minutes": 30,
+          "priority": "high",
+          "pet_name": "Buddy",
+          "due_date_or_day": null,
+          "recurrence": "daily",
+          "preferred_time_window": null,
+          "mandatory": false,
+          "notes": "",
+          "completed": false,
+          "time": "07:00"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Files modified
+
+| File | Change |
+|------|--------|
+| `pawpal_system.py` | Added `Task.to_dict()`, `Task.from_dict()`, `Pet.to_dict()`, `Pet.from_dict()`, `Owner.save_to_json()`, `Owner.load_from_json()` |
+| `app.py` | Added `DATA_FILE` constant; auto-load on session init; `save_to_json()` calls after owner save, pet add, and task add |
 
 ## Getting started
 

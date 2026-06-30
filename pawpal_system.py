@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -43,6 +45,38 @@ class Owner:
         """Return all pets belonging to this owner."""
         return self.pets
 
+    def save_to_json(self, filepath: str = "data.json") -> None:
+        """Persist the owner, their preferences, and all pets/tasks to a JSON file."""
+        payload = {
+            "name": self.name,
+            "daily_time_available_minutes": self.daily_time_available_minutes,
+            "preferred_time_windows": self.preferred_time_windows,
+            "preferences": self.preferences,
+            "pets": [p.to_dict() for p in self.pets],
+        }
+        with open(filepath, "w") as f:
+            json.dump(payload, f, indent=2)
+
+    @classmethod
+    def load_from_json(cls, filepath: str = "data.json") -> "Owner":
+        """Load an Owner (with all pets and tasks) from a JSON file.
+
+        Returns None if the file does not exist so callers can treat a missing
+        file as a first-run condition without raising an exception.
+        """
+        if not os.path.exists(filepath):
+            return None
+        with open(filepath) as f:
+            data = json.load(f)
+        owner = cls(
+            name=data["name"],
+            daily_time_available_minutes=data["daily_time_available_minutes"],
+            preferred_time_windows=data.get("preferred_time_windows", []),
+            preferences=data.get("preferences", {}),
+        )
+        owner.pets = [Pet.from_dict(p) for p in data.get("pets", [])]
+        return owner
+
 
 @dataclass
 class Pet:
@@ -71,6 +105,32 @@ class Pet:
     def requires_special_handling(self, task_type: str) -> bool:
         """Return True for medical tasks or any pet that has health notes recorded."""
         return task_type.lower() == "medical" or bool(self.health_notes)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize this Pet (and its tasks) to a JSON-safe dictionary."""
+        return {
+            "name": self.name,
+            "species": self.species,
+            "breed": self.breed,
+            "age": self.age,
+            "health_notes": self.health_notes,
+            "energy_level": self.energy_level,
+            "tasks": [t.to_dict() for t in self.tasks],
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Pet":
+        """Reconstruct a Pet (and its tasks) from a dictionary produced by to_dict()."""
+        pet = cls(
+            name=data["name"],
+            species=data["species"],
+            breed=data["breed"],
+            age=data["age"],
+            health_notes=data.get("health_notes", ""),
+            energy_level=data.get("energy_level", "medium"),
+        )
+        pet.tasks = [Task.from_dict(t) for t in data.get("tasks", [])]
+        return pet
 
 
 @dataclass
@@ -119,6 +179,44 @@ class Task:
         my_end = start_time + timedelta(minutes=self.duration_minutes)
         other_end = start_time + timedelta(minutes=other_task.duration_minutes)
         return start_time < other_end and my_end > start_time
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize this Task to a JSON-safe dictionary."""
+        return {
+            "task_id": self.task_id,
+            "title": self.title,
+            "category": self.category,
+            "duration_minutes": self.duration_minutes,
+            "priority": self.priority,
+            "pet_name": self.pet_name,
+            "due_date_or_day": self.due_date_or_day.isoformat() if self.due_date_or_day else None,
+            "recurrence": self.recurrence,
+            "preferred_time_window": self.preferred_time_window,
+            "mandatory": self.mandatory,
+            "notes": self.notes,
+            "completed": self.completed,
+            "time": self.time,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Task":
+        """Reconstruct a Task from a dictionary produced by to_dict()."""
+        raw_date = data.get("due_date_or_day")
+        return cls(
+            task_id=data["task_id"],
+            title=data["title"],
+            category=data["category"],
+            duration_minutes=data["duration_minutes"],
+            priority=data["priority"],
+            pet_name=data.get("pet_name"),
+            due_date_or_day=date.fromisoformat(raw_date) if raw_date else None,
+            recurrence=data.get("recurrence", "once"),
+            preferred_time_window=data.get("preferred_time_window"),
+            mandatory=data.get("mandatory", False),
+            notes=data.get("notes", ""),
+            completed=data.get("completed", False),
+            time=data.get("time"),
+        )
 
 
 class TaskManager:
