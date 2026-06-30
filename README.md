@@ -75,19 +75,53 @@ All tasks across all pets: 5 total
 
 ## 🧪 Testing PawPal+
 
+### How to run
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python3 -m pytest tests/test_pawpal.py -v
 ```
 
-Sample test output:
+### What the tests cover
+
+| Area | Tests |
+|------|-------|
+| **Sorting correctness** | Tasks are returned in chronological `HH:MM` order; tasks with no time sort last; identical times don't raise and preserve insertion order. |
+| **Recurrence logic** | Completing a daily task appends a new Task due the following day, the original is marked done, and one-off tasks produce no new occurrence. |
+| **Conflict detection** | Duplicate time slots produce a warning string; different slots produce none; completed tasks and untimed tasks are excluded from checks; three tasks at the same slot yield all three pairwise warnings. |
+| **Core task/pet behavior** | Marking complete flips `task.completed`; appending tasks increments `pet.tasks`. |
+
+### Successful test run output
 
 ```
-# Paste your pytest output here
+============================= test session starts ==============================
+platform darwin -- Python 3.14.0, pytest-9.1.1, pluggy-1.6.0 -- /Library/Frameworks/Python.framework/Versions/3.14/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/nmaisheri/Documents/ai110-module2show-pawpal-starter
+plugins: anyio-4.14.0
+collecting ... collected 13 items
+
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [  7%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 15%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 23%]
+tests/test_pawpal.py::test_sort_by_time_tasks_without_time_go_last PASSED [ 30%]
+tests/test_pawpal.py::test_sort_by_time_identical_times_preserves_input_order PASSED [ 38%]
+tests/test_pawpal.py::test_mark_task_complete_creates_next_day_task_for_daily PASSED [ 46%]
+tests/test_pawpal.py::test_mark_task_complete_original_is_marked_done PASSED [ 53%]
+tests/test_pawpal.py::test_mark_task_complete_returns_none_for_one_off_task PASSED [ 61%]
+tests/test_pawpal.py::test_detect_conflicts_flags_duplicate_time_slots PASSED [ 69%]
+tests/test_pawpal.py::test_detect_conflicts_no_warnings_for_different_times PASSED [ 76%]
+tests/test_pawpal.py::test_detect_conflicts_skips_completed_tasks PASSED [ 84%]
+tests/test_pawpal.py::test_detect_conflicts_skips_tasks_without_time PASSED [ 92%]
+tests/test_pawpal.py::test_detect_conflicts_three_tasks_same_slot_produces_three_warnings PASSED [100%]
+
+============================== 13 passed in 0.01s ==============================
 ```
+
+### Confidence Level
+
+**★★★★☆ (4/5)**
+
+The core scheduling behaviors — sorting, conflict detection, recurrence, and task completion — are all tested and passing. One star is held back because the tests cover unit-level logic but do not exercise the Streamlit UI layer or integration paths (e.g., a full `generate_plan` round-trip with a real Owner + Pet + multiple tasks). Adding integration and UI smoke tests would bring this to 5/5.
 
 ## 📐 Smarter Scheduling
 
